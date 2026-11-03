@@ -57,6 +57,23 @@ it('denies non-super-admins access to user administration', function () {
         ->assertForbidden();
 });
 
+it('creates the initial super administrator through a guarded console bootstrap', function () {
+    $this->artisan('app:create-initial-super-admin')
+        ->expectsQuestion('Administrator name', 'Initial Administrator')
+        ->expectsQuestion('Administrator email', 'initial-admin@example.test')
+        ->expectsQuestion('Password', 'SecureBootstrap123!')
+        ->expectsQuestion('Confirm password', 'SecureBootstrap123!')
+        ->expectsOutputToContain('Initial super administrator created.')
+        ->assertExitCode(0);
+
+    $user = User::query()->where('email', 'initial-admin@example.test')->firstOrFail();
+    expect($user->hasRole(UserRole::SuperAdmin->value))->toBeTrue();
+
+    $this->artisan('app:create-initial-super-admin')
+        ->expectsOutputToContain('A super administrator already exists; bootstrap is disabled.')
+        ->assertExitCode(1);
+});
+
 it('renders searchable and paginated user administration for super administrators', function () {
     $admin = User::factory()->create();
     $admin->assignRole(UserRole::SuperAdmin->value);

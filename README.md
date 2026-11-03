@@ -8,6 +8,7 @@ A server-rendered university management system built with Laravel 12, Blade, Tai
 - Composer 2
 - Node.js 20+ and npm
 - PostgreSQL 15+
+- Docker Engine with Docker Compose (for containerized local development or Render deployment)
 
 ## Local setup
 
@@ -78,13 +79,40 @@ These are assessment defaults, not institution-approved policy. Confirm them wit
 ## Tests and verification
 
 ```sh
-vendor/bin/pest --compact
+vendor/bin/pest
 vendor/bin/pint --test
 npm run build
 DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan migrate:fresh --seed --force
 ```
 
 Feature tests use an isolated in-memory SQLite database. `pdo_sqlite` is required for tests; `pdo_pgsql` is required for the application. Do not point tests at a production database.
+
+## Docker and Render deployment
+
+The production Docker image builds frontend assets, installs Composer production dependencies, and serves Laravel's `public/` directory with Nginx and PHP-FPM on PHP 8.3 Alpine. Supervisor keeps Nginx and PHP-FPM running in the same container. It listens on Render's `PORT` (default `10000`) and uses Laravel's `/up` health endpoint.
+
+Run the app with PostgreSQL locally using Docker Compose:
+
+1. Generate a local application key and export it for Compose:
+
+   ```sh
+   export APP_KEY="$(php artisan key:generate --show)"
+   docker compose up --build
+   ```
+
+2. Visit `http://localhost:8000`. Compose starts PostgreSQL, waits for it to be ready, applies migrations, and starts Nginx/PHP-FPM under Supervisor. The local Compose database does not contain demo users; create a local administrator with `docker compose exec app php artisan app:create-initial-super-admin`. Local PostgreSQL credentials are only for development.
+3. Stop the containers with `docker compose down`. Add `--volumes` only if you intend to delete the local PostgreSQL data.
+
+Deploy to Render:
+
+1. Push this project to a Git provider connected to Render, then create a Blueprint from the repository using `render.yaml`.
+2. The Blueprint creates a PostgreSQL database and Docker web service in Oregon. It uses paid Render plans; review current pricing before confirming. The database connection is injected through `DB_URL`; the pre-deploy command migrates the database and seeds role/permission definitions only.
+3. When prompted, set `APP_KEY` using the output of `php artisan key:generate --show`. Do not change this key after deployment, and never use the local/demo key in production.
+4. After the first successful deploy, open the web service's Shell and run `php artisan app:create-initial-super-admin`. This prompts for the initial administrator's name, email, and a confirmed strong password. The command refuses to run once any super-admin account exists.
+5. Render provides `RENDER_EXTERNAL_URL`; the container uses it as `APP_URL` when one is not explicitly configured. Set production mail credentials and any institution-specific environment values in the Render dashboard.
+6. After deploy, confirm `/up` is healthy and test login and the role-specific workflows. Do not run demo seeders in production. Configure backups and verify a restore; Render PostgreSQL backup features and retention depend on the selected database plan.
+
+The `render.yaml` database and web-service plans may be adjusted to fit budget and capacity. The app container has an ephemeral filesystem, so user uploads must use object storage or another persistent service if added later.
 
 ## VPS deployment
 

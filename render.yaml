@@ -1,0 +1,44 @@
+databases:
+  - name: university-management-db
+    databaseName: university_management
+    user: university_management
+    plan: basic-256mb
+    region: oregon
+
+services:
+  - type: web
+    name: university-management
+    runtime: docker
+    plan: 0.5c-512mb
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    preDeployCommand: php artisan migrate --force && php artisan db:seed --class=RolePermissionSeeder --force
+    healthCheckPath: /up
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false
+      - key: APP_TIMEZONE
+        value: Africa/Lagos
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: university-management-db
+          property: connectionString
+      - key: DB_SSLMODE
+        value: require
+      - key: SESSION_DRIVER
+        value: database
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
