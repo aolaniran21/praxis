@@ -49,6 +49,6 @@ ENV APP_ENV=production \
     LOG_CHANNEL=stderr \
     COMPOSER_ALLOW_SUPERUSER=1
 
-EXPOSE 10000
+EXPOSE 80
 
 CMD ["/start.sh"]
