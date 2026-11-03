@@ -106,11 +106,11 @@ Run the app with PostgreSQL locally using Docker Compose:
 Deploy to Render:
 
 1. Push this project to a Git provider connected to Render, then create a Blueprint from the repository using `render.yaml`.
-2. The Blueprint creates a PostgreSQL database and Docker web service in Oregon. It uses paid Render plans; review current pricing before confirming. The database connection is injected through `DB_URL`; the pre-deploy command migrates the database and seeds role/permission definitions only.
+2. The Blueprint creates a Docker web service in Oregon and prompts for `DB_URL`. In Render's environment settings, provide your Neon PostgreSQL connection URL; `DB_EMULATE_PREPARES=true` supports transactional migrations over Neon/PgBouncer pooler connections. The pre-deploy command migrates the database and seeds role/permission definitions only. The web service plan is paid; review current pricing before confirming.
 3. When prompted, set `APP_KEY` using the output of `php artisan key:generate --show`. Do not change this key after deployment, and never use the local/demo key in production.
 4. After the first successful deploy, open the web service's Shell and run `php artisan app:create-initial-super-admin`. This prompts for the initial administrator's name, email, and a confirmed strong password. The command refuses to run once any super-admin account exists.
 5. Render provides `RENDER_EXTERNAL_URL`; the container uses it as `APP_URL` when one is not explicitly configured. Set production mail credentials and any institution-specific environment values in the Render dashboard.
-6. After deploy, confirm `/up` is healthy and test login and the role-specific workflows. Do not run demo seeders in production. Configure backups and verify a restore; Render PostgreSQL backup features and retention depend on the selected database plan.
+6. After deploy, confirm `/up` is healthy and test login and the role-specific workflows. Do not run demo seeders in production. Configure backups and verify a restore; Neon backup features and retention depend on the selected database plan.
 
 The `render.yaml` database and web-service plans may be adjusted to fit budget and capacity. The app container has an ephemeral filesystem, so user uploads must use object storage or another persistent service if added later.
 
