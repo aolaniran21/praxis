@@ -127,7 +127,7 @@ class UniversityDemoSeeder extends Seeder
 
     private function user(string $name, string $email, string $password): User
     {
-        return User::firstOrCreate(
+        return User::updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,

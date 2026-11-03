@@ -12,6 +12,19 @@ test('profile page is displayed', function () {
     $response->assertOk();
 });
 
+test('logout controls submit the logout route using POST', function () {
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->get('/profile');
+
+    $response
+        ->assertOk()
+        ->assertSee('<form method="POST" action="'.route('logout').'">', false)
+        ->assertDontSee('<a href="'.route('logout').'"', false);
+});
+
 test('profile information can be updated', function () {
     $user = User::factory()->create();
 

@@ -32,7 +32,7 @@ A server-rendered university management system built with Laravel 12, Blade, Tai
    composer run dev
    ```
 
-The local/testing seed creates demo roles, a faculty, department, program, academic session, courses, and role-specific accounts. The default local-only demo password is `ChangeMe123!`; set `DEMO_PASSWORD` to a unique value before seeding. Never seed demo accounts in production.
+The local/testing seed creates demo roles, a faculty, department, program, academic session, courses, and role-specific accounts. The default local-only demo password is `ChangeMe123!`; set `DEMO_PASSWORD` to a unique value before seeding. Render intentionally seeds synthetic demo accounts using its separately configured `DEMO_PASSWORD` secret; the seeder refuses to run in production without that secret.
 
 Demo accounts:
 
@@ -43,7 +43,63 @@ Demo accounts:
 | Lecturer | `lecturer@university.test` |
 | Student | `student@university.test` |
 
-Public registration is disabled. Accounts and profiles must be provisioned by trusted administration; only the local/testing seeder currently creates demo users.
+Public registration is disabled. Accounts and profiles must be provisioned by trusted administration or the explicitly configured demo seeder.
+
+## Assessment submission
+
+| Requirement | Submission |
+|---|---|
+| Live application | [https://praxis-as4n.onrender.com](https://praxis-as4n.onrender.com) |
+| Login | [https://praxis-as4n.onrender.com/login](https://praxis-as4n.onrender.com/login) |
+| Test account | Student: `student@university.test`. Other demo roles: `admin@university.test`, `department.admin@university.test`, `lecturer@university.test`. |
+| Test password | The shared value configured in Render's `DEMO_PASSWORD` environment secret. Share it privately with assessors; do not put it in this public README. |
+| Source code | [https://github.com/aolaniran21/praxis](https://github.com/aolaniran21/praxis) |
+| Technical documentation | This README: architecture, database relationships, security, stack, and setup below. |
+| Database design | [Database ER diagram](docs/database-erd.md) |
+| Demonstration | Available for a live walkthrough. No recorded video link is currently provided. |
+
+Confirm Render has deployed the latest commit, the login page responds successfully, and the `DEMO_PASSWORD` secret matches the deployed demo accounts before submitting. Demo accounts contain synthetic data and must not be used for real student records.
+
+## Architecture and security
+
+### Technology stack
+
+| Area | Technology |
+|---|---|
+| Backend | Laravel 12, PHP 8.3+ |
+| Views and frontend | Blade, Tailwind CSS, Alpine.js, Vite |
+| Database | PostgreSQL (Neon for the Render deployment) |
+| Authentication | Laravel Breeze session authentication |
+| Authorization | Spatie Laravel Permission roles plus Laravel policies and scoped queries |
+| Tests | Pest |
+| Deployment | Docker image with PHP-FPM, Nginx, Supervisor, hosted on Render |
+
+### Request and domain flow
+
+```text
+Browser
+  -> Render HTTPS proxy
+  -> Nginx / PHP-FPM container
+  -> Laravel routes and authentication / role middleware
+  -> Form Requests, controllers, policies, and domain services
+  -> Eloquent models and PostgreSQL transactions
+  -> PostgreSQL
+```
+
+This is a server-rendered modular monolith: one Laravel application owns the web routes, application rules, and persistence. Blade renders HTML; Vite builds CSS and JavaScript into the production image. Course registration and result workflow operations use database transactions, while models and services keep domain operations separate from view rendering.
+
+### Security model and key decisions
+
+- One `users` table authenticates all roles. Student and lecturer details live in separate one-to-one profile tables; department admins can be scoped to a department.
+- Role middleware gates role-specific route groups. Resource policies and department-constrained queries enforce ownership and department boundaries. Super-admin oversight does not grant result approval.
+- Public self-registration is disabled. Accounts are created by authorized administrators or the explicitly requested assessment demo seeder.
+- Passwords use Laravel's hashed model cast. Login is rate-limited; CSRF protection, request validation, session authentication, and escaped Blade output use Laravel's standard protections.
+- Deactivated users cannot authenticate; active-account middleware also logs out an already authenticated user if the account is deactivated.
+- Result transitions and registration add/drop changes create audit records. Results are student-visible only after publication.
+- Render secrets (`APP_KEY`, database URL, and `DEMO_PASSWORD`) belong in Render's environment settings, not source control. The Render demo password must be strong, unique, and shared with assessors privately.
+- PostgreSQL enforces foreign keys and uniqueness constraints, including duplicate registration prevention. The configured PostgreSQL connection binds booleans as native boolean parameters.
+
+See the [database ER diagram](docs/database-erd.md) for entities, keys, and relationship cardinalities. See [local setup](#local-setup), [Docker and Render deployment](#docker-and-render-deployment), and [VPS deployment](#vps-deployment) for run instructions.
 
 ## Academic rules and implementation decisions
 
@@ -131,7 +187,7 @@ The `render.yaml` database and web-service plans may be adjusted to fit budget a
    php artisan view:cache
    ```
 
-   Run `key:generate` only when provisioning a new application key; preserve the existing key when deploying updates. Never run the demo seeder in production.
+   Run `key:generate` only when provisioning a new application key; preserve the existing key when deploying updates. Do not run the demo seeder on a VPS unless you intentionally want assessment demo accounts and have configured a secure `DEMO_PASSWORD`.
 4. Configure Nginx/Apache's document root to the application's `public/` directory, route requests through `public/index.php`, deny access to dotfiles and source/configuration files, and enable TLS/HTTPS. Grant the web user write access only to `storage/` and `bootstrap/cache/`.
 5. Configure scheduled `php artisan schedule:run` once per minute only when scheduled tasks are introduced. Start `php artisan queue:work --tries=3` under systemd/Supervisor if queued work is enabled. Restart workers after deploys.
 6. Configure encrypted/off-host PostgreSQL backups, retention, periodic restore drills, storage monitoring, log rotation, HTTPS renewal, and a rollback procedure. Verify login, role boundaries, registration, result approvals/publication, corrections, report scoping, and CSV export on the deployed host.
@@ -146,4 +202,4 @@ pg_dump --format=custom --no-owner --file=/protected-backups/university-$(date +
 
 - PHP 8.3.6, required PHP extensions, Composer 2.7.1, Node.js 25, and npm 11 are available in the development environment.
 - Automated tests currently run on SQLite. PostgreSQL connectivity and migrations still require valid database credentials; no production VPS or TLS endpoint is available here, so deployment verification must be completed in the target environment.
-- Demo users and synthetic data are for local/testing only. Set a unique `DEMO_PASSWORD` before local seeding; never seed demo users in production.
+- Demo users and synthetic data are assessment-only. Local/test seeding may use the documented local password; Render production seeding requires a unique `DEMO_PASSWORD`. Do not use demo accounts for real student data.
