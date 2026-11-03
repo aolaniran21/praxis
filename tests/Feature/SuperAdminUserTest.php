@@ -86,14 +86,19 @@ it('renders searchable and paginated user administration for super administrator
 });
 
 it('does not allow inactive accounts to authenticate', function () {
-    $user = User::factory()->create(['is_active' => false]);
+    $user = User::factory()->create([
+        'is_active' => false,
+        'remember_token' => null,
+    ]);
 
     $this->post(route('login'), [
         'email' => $user->email,
         'password' => 'password',
+        'remember' => true,
     ])->assertSessionHasErrors('email');
 
     expect(auth()->check())->toBeFalse();
+    expect($user->fresh()->remember_token)->toBeNull();
 });
 
 it('logs out an already authenticated account as soon as it is deactivated', function () {

@@ -17,11 +17,12 @@ services:
       DB_DATABASE: university_management
       DB_USERNAME: university
       DB_PASSWORD: university
+      DEMO_PASSWORD: "${DEMO_PASSWORD:-ChangeMe123!}"
       SESSION_DRIVER: database
       CACHE_STORE: database
       QUEUE_CONNECTION: database
       LOG_CHANNEL: stderr
-    command: ["sh", "-c", "php artisan migrate --force && exec /start.sh"]
+    command: ["sh", "-c", "php artisan migrate --force && php artisan db:seed --force && exec /start.sh"]
     ports:
       - "8000:10000"
 

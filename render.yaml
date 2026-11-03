@@ -6,7 +6,7 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    preDeployCommand: php artisan migrate --force && php artisan db:seed --class=RolePermissionSeeder --force
+    preDeployCommand: php artisan migrate --force && php artisan db:seed --class=RolePermissionSeeder --force && php artisan db:seed --class=UniversityDemoSeeder --force
     healthCheckPath: /up
     envVars:
       - key: APP_ENV
@@ -27,6 +27,8 @@ services:
         value: require
       - key: DB_EMULATE_PREPARES
         value: "true"
+      - key: DEMO_PASSWORD
+        sync: false
       - key: SESSION_DRIVER
         value: database
       - key: SESSION_SECURE_COOKIE

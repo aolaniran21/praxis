@@ -15,11 +15,20 @@ use App\Models\Semester;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class UniversityDemoSeeder extends Seeder
 {
     public function run(): void
     {
+        $demoPassword = config('app.demo_password');
+
+        if (app()->environment('production') && blank($demoPassword)) {
+            throw new RuntimeException('DEMO_PASSWORD must be configured before seeding demo accounts in production.');
+        }
+
+        $demoPassword = $demoPassword ?: 'ChangeMe123!';
+
         $faculty = Faculty::firstOrCreate(['code' => 'SCI'], ['name' => 'Faculty of Science']);
         $department = Department::firstOrCreate(
             ['code' => 'CSC'],
@@ -61,21 +70,21 @@ class UniversityDemoSeeder extends Seeder
             ],
         );
 
-        $superAdmin = $this->user('University Administrator', 'admin@university.test');
+        $superAdmin = $this->user('University Administrator', 'admin@university.test', $demoPassword);
         $superAdmin->syncRoles(UserRole::SuperAdmin->value);
 
-        $departmentAdmin = $this->user('Department Administrator', 'department.admin@university.test');
+        $departmentAdmin = $this->user('Department Administrator', 'department.admin@university.test', $demoPassword);
         $departmentAdmin->forceFill(['department_id' => $department->id])->save();
         $departmentAdmin->syncRoles(UserRole::DepartmentAdmin->value);
 
-        $lecturerUser = $this->user('Demo Lecturer', 'lecturer@university.test');
+        $lecturerUser = $this->user('Demo Lecturer', 'lecturer@university.test', $demoPassword);
         $lecturerUser->syncRoles(UserRole::Lecturer->value);
         $lecturer = Lecturer::firstOrCreate(
             ['user_id' => $lecturerUser->id],
             ['department_id' => $department->id, 'staff_number' => 'STAFF-0001'],
         );
 
-        $studentUser = $this->user('Demo Student', 'student@university.test');
+        $studentUser = $this->user('Demo Student', 'student@university.test', $demoPassword);
         $studentUser->syncRoles(UserRole::Student->value);
         Student::firstOrCreate(
             ['user_id' => $studentUser->id],
@@ -108,7 +117,7 @@ class UniversityDemoSeeder extends Seeder
         }
 
         $this->command?->info(sprintf(
-            'Demo accounts seeded. Set DEMO_PASSWORD to choose their shared local password. Current semester: %s (%s).',
+            'Demo accounts are seeded with the configured shared password. Current semester: %s (%s).',
             $session->name,
             $semester->type->value,
         ));
@@ -116,13 +125,13 @@ class UniversityDemoSeeder extends Seeder
         unset($secondSemester, $superAdmin);
     }
 
-    private function user(string $name, string $email): User
+    private function user(string $name, string $email, string $password): User
     {
         return User::firstOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
-                'password' => env('DEMO_PASSWORD') ?: 'ChangeMe123!',
+                'password' => $password,
                 'email_verified_at' => now(),
             ],
         );
